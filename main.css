@@ -1,0 +1,113 @@
+
+body
+{
+    margin: 0;
+}
+
+h2
+{
+    border: none;
+    outline: none;
+}
+
+.hide-me
+{
+    display: none;
+}
+
+#app
+{
+    font-size: 20px;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-image: url(sky.jpg);
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    color: #b71a1a;
+    font-family: Arial;
+}
+
+.box
+{
+    text-align: center;
+    margin: 30px 100px;
+    width: calc(100% - 200px);
+    height: calc(100vh - 60px);
+    box-sizing: border-box;
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 2px;
+    color: white;
+}
+
+.cursor
+{
+    transition: 0.1s transform;
+    width: 2px;
+    height: 20px;
+    background-color: red;
+    animation: cursor 1.5s infinite linear;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate(10px, 10px);
+}
+
+.cursor.jump
+{
+    transition: none;
+}
+
+.cursor-placeholder
+{
+    width: 0;
+    /* width: 1px; */
+}
+
+.transparent
+{
+    /* opacity: 0; */
+    /* border: 1px solid white; */
+    /* color: transparent; */
+}
+
+.transparent::after
+{
+    /* content: ''; */
+    display: inline-block;
+    position: relative;
+    top: 0;
+    bottom: 0;
+    background-color: red;
+    width: 10px;
+    height: 10px;
+}
+
+.transparent:first-child
+{
+    /* transform: translateX(5px); */
+}
+
+/* .cursor::before */
+/* { */
+/*     content: ''; */
+/*     position: absolute; */
+/*     width: 0; */
+/*     height: 15px; */
+/*     background-color: darkviolet; */
+/* } */
+
+@keyframes cursor
+{
+    0%, 100%, 20%, 80%
+    {
+        opacity: 1;
+    }
+
+    50%
+    {
+        opacity: 0;
+    }
+}
