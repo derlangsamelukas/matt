@@ -138,6 +138,7 @@ const gogo = (root, create, model, store) => {
             g: () => insertVar('g', cursor, pos),
             i: () => insertVar('i', cursor, pos),
             e: () => insertVar('e', cursor, pos),
+            k: () => insertVar('k', cursor, pos),
             f: () => insertVar('&fnof;', cursor, pos, true),
             p: () => insertVar('&pi;', cursor, pos, true),
             '+': () => insertOp('+', cursor, pos),
@@ -169,6 +170,10 @@ const gogo = (root, create, model, store) => {
                 pos.matt.insertChild(modelFactory.fracture(), pos.index)
                 pos = moveRight(cursor, pos)
                 event.preventDefault()
+            },
+            E: () => {
+                pos.matt.insertChild(modelFactory.sum(), pos.index)
+                pos = moveRight(cursor, pos)
             },
             s: () => {
                 store(rootMatt.buildModel())
