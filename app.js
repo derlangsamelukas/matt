@@ -7,15 +7,15 @@ const modelFactory = factory
 
 export function go(root, create){
     const box = document.createElement('div')
-    storage.load().then((equations) => {
-        const model = modelFactory.math(equations)
+    storage.load().then((defintion) => {
+        const model = modelFactory.math(defintion.children || [])
         box.classList.add('box')
         box.setAttribute('spellcheck', false)
         const title = document.createElement('h2')
         title.setAttribute('contenteditable', true)
-        title.textContent = 'Hej'
+        title.textContent = defintion.title || 'Hej'
         box.appendChild(title)
-        const typing = gogo(box, create, model, (matt) => storage.store(matt.children))
+        const typing = gogo(box, create, model, (matt) => storage.store({title: title.textContent, children: matt.children}))
         title.addEventListener('focusin', typing.unsubscribe)
         title.addEventListener('focusout', typing.subscribe)
         root.appendChild(box)

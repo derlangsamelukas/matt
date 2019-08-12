@@ -33,6 +33,6 @@ export let local = {
         return Promise.resolve()
     },
     load: () => {
-        return Promise.resolve(JSON.parse(window.localStorage.getItem('equations') || '[]'))
+        return Promise.resolve(JSON.parse(window.localStorage.getItem('equations') || '{}'))
     }
 }
