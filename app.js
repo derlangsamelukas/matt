@@ -1,25 +1,29 @@
+import {Void} from './util.js'
 import {factory, wrappit} from './model.js'
 import * as storageProvider from './storage.js'
 
-const storage = storageProvider.local
+const storage = storageProvider.local()
 
 const modelFactory = factory
 
 export function go(root, create){
     const box = document.createElement('div')
-    storage.load().then((defintion) => {
-        const model = modelFactory.math(defintion.children || [])
-        box.classList.add('box')
-        box.setAttribute('spellcheck', false)
-        const title = document.createElement('h2')
-        title.setAttribute('contenteditable', true)
-        title.textContent = defintion.title || 'Hej'
-        box.appendChild(title)
-        const typing = gogo(box, create, model, (matt) => storage.store({title: title.textContent, children: matt.children}))
-        title.addEventListener('focusin', typing.unsubscribe)
-        title.addEventListener('focusout', typing.subscribe)
-        root.appendChild(box)
+    box.classList.add('box')
+    box.setAttribute('spellcheck', false)
+    root.appendChild(box)
+    storageProvider.idb().then(function(database){
+        showSubjects(box, database, create)
     })
+    // storage.load().then((defintion) => {
+    //     const model = modelFactory.math(defintion.children || [])
+    //     const title = document.createElement('h2')
+    //     title.setAttribute('contenteditable', true)
+    //     title.textContent = defintion.title || 'Hej'
+    //     box.appendChild(title)
+    //     const typing = gogo(box, create, model, (matt) => storage.store({title: title.textContent, children: matt.children}))
+    //     title.addEventListener('focusin', typing.unsubscribe)
+    //     title.addEventListener('focusout', typing.subscribe)
+    // })
 }
 
 const before = (node, insertMe) => {
@@ -116,7 +120,7 @@ const gogo = (root, create, model, store) => {
                     pos.matt.removeChild(pos.index)
                     renderCursor(cursor, pos)
                 }
-                else if(pos.matt.isEmpty())
+                else if(pos.matt.isEmpty() && pos.matt !== rootMatt)
                 {
                     const newPos = pos.up(-1)
                     if(newPos !== pos)
@@ -149,9 +153,7 @@ const gogo = (root, create, model, store) => {
                 const copy = Object.assign({}, pos, {index: pos.index -1})
                 if(isAtChild(copy))
                 {
-                    console.log('before')
                     const cut = getChildAtPos(copy).buildModel()
-                    console.log('after')
                     copy.matt.removeChild(copy.index)
                     pos = moveLeft(cursor, pos)
                     pos.matt.insertChild(modelFactory.pow([modelFactory.number(2)], [cut]), pos.index)
@@ -184,7 +186,18 @@ const gogo = (root, create, model, store) => {
     }
     const subscribe = () => window.addEventListener('keydown', keydown)
     const unsubscribe = () => window.removeEventListener('keydown', keydown)
-    subscribe()
+    //subscribe()
+    cursor.visible.classList.add('hide-me')
+
+    root.setAttribute('tabindex', 0)
+    root.addEventListener('focusin', () => {
+        subscribe()
+        cursor.visible.classList.remove('hide-me')
+    })
+    root.addEventListener('focusout', () => {
+        unsubscribe()
+        cursor.visible.classList.add('hide-me')
+    })
 
     return {subscribe, unsubscribe}
 }
@@ -235,4 +248,203 @@ const moveRight = (cursor, pos) => {
 const createMoveUp = (oldPos) => (dir) => {
     const pos = Object.assign(oldPos, {index: oldPos.index + Math.sign(dir +1)})
     return pos
+}
+
+const showSubjects = (box, database, create) => {
+    database.subjects.all().then((subjects) => {
+        box.innerHTML = ''
+        const list = document.createElement('div')
+        list.classList.add('list')
+        const button = createButton('new subject', () => {
+            prompt('enter subject name: ', (name) => {
+                const subject = {id: new Date().getTime(), name, content: 'nothing yet'}
+                database.subjects.put(subject).then(() => renderSubject(subject))
+            })
+        })
+        const renderSubject = (subject) => {
+            const node = document.createElement('div')
+            node.classList.add('item')
+            node.textContent = subject.name
+            list.appendChild(node)
+            node.addEventListener('click', () => {
+                showSubject(box, database, subject, create)
+            })
+        }
+        box.appendChild(list)
+        box.appendChild(button)
+        subjects.forEach(renderSubject)
+        //database.subjects.put({id: new Date().getTime(), name: 'Ana', content: 'xx'})
+    })
+}
+
+const showSubject = (box, database, subject, create) => {
+    database.sections.all('subject', subject.id).then((sections) => {
+        const list = document.createElement('div')
+        list.classList.add('list')
+        const button = createButton('new subject', () => {
+            prompt('enter section name: ', (name) => {
+                const section = {id: new Date().getTime(), name, content: 'nothing yet', subject: subject.id}
+                sections.push(section)
+                database.sections.put(section).then(() => renderSection(section))
+            })
+        })
+        const renderSection = (section) => {
+            const node = document.createElement('div')
+            node.classList.add('item')
+            node.textContent = section.name
+            list.appendChild(node)
+            node.addEventListener('click', () => {
+                showSection(box, database, section, create, () => {
+                    showSubject(box, database, subject, create)
+                })
+            })
+        }
+        box.innerHTML = ''
+        box.appendChild(createTitle(subject.name, (name) => database.subjects.put(Object.assign(subject, {name}))))
+        box.appendChild(createDescription(subject.content, (content) => database.subjects.put(Object.assign(subject, {content}))))
+        box.appendChild(list)
+        box.appendChild(button)
+        const back = () => {
+            showSubjects(box, database, create)
+        }
+        box.appendChild(createBackArrow(back))
+        box.appendChild(createDelete('subject ' + subject.name, () => {
+            database.subjects.remove(subject.id)
+            sections.forEach((section) => database.sections.remove(section.id))
+            back()
+        }))
+        sections.forEach(renderSection)
+    })
+}
+
+const showSection = (box, database, section, create, back) => {
+    const list = document.createElement('div')
+    list.classList.add('list')
+    const button = createButton('new equation', () => {
+        const equation = {id: new Date().getTime(), matt: '[]', section: section.id}
+        database.equations.put(equation).then(() => renderEquation(equation))
+    })
+    let equations = []
+    const renderEquation = (equation) => {
+        equations.push(equation)
+        const node = document.createElement('div')
+        node.classList.add('equation')
+        gogo(node, create, modelFactory.math(JSON.parse(equation.matt)), (matt) => {
+            database.equations.put(Object.assign({}, equation, {matt: JSON.stringify(matt.children)}))
+        })
+        node.appendChild(createDelete('equation', () => database.equations.remove(equation.id) && node.remove()))
+        list.appendChild(node)
+    }
+    database.equations.all('section', section.id).then((equations) => equations.forEach(renderEquation))
+    box.innerHTML = ''
+    box.appendChild(createTitle(section.name))
+    box.appendChild(createDescription(section.content))
+    box.appendChild(list)
+    box.appendChild(button)
+    box.appendChild(createBackArrow(back))
+    box.appendChild(createDelete('section ' + section.name, () => {
+        database.sections.remove(section.id)
+        equations.forEach((equation) => database.equations.remove(equation.id))
+        back()
+    }))
+}
+
+const delayEvent = (g) => {
+    let f = Void
+    return () => {
+        f()
+        const handle = window.setTimeout(() => {
+            g()
+            f = Void
+        }, 500)
+        f = () => window.clearTimeout(handle)
+    }
+}
+
+const createTitle = (label, oninput = Void) => {
+    const title = document.createElement('div')
+    const trigger = delayEvent(() => oninput(title.textContent))
+    title.classList.add('title')
+    title.textContent = label
+    title.setAttribute('contenteditable', true)
+    title.addEventListener('input', trigger)
+    
+    return title
+}
+
+const createDescription = (description, oninput = Void) => {
+    const node = document.createElement('div')
+    const trigger = delayEvent(() => oninput(Array.from(node.childNodes).map((node) => node.textContent.trim()).join('\n')))
+    node.classList.add('some-text')
+    node.setAttribute('contenteditable', true)
+    node.addEventListener('input', trigger)
+
+    description.split('\n').forEach((line) => {
+        const lineNode = document.createElement('div')
+        lineNode.textContent = line.trim()
+        lineNode.textContent === '' && (lineNode.innerHTML = '&nbsp;')
+        node.appendChild(lineNode)
+    })
+    
+    return node
+}
+
+const createButton = (label, onclick) => {
+    const button = document.createElement('div')
+    button.classList.add('yes-i-am-a-button')
+    button.textContent = label
+    button.addEventListener('click', onclick || Void)
+
+    return button
+}
+
+const withModal = (f) => {
+    const modal = document.createElement('div')
+    const inner = document.createElement('div')
+    
+    inner.classList.add('inner')
+    modal.classList.add('the-modal')
+    modal.appendChild(inner)
+    const _ = (f(modal) || []).forEach((child) => inner.appendChild(child))
+    document.body.appendChild(modal)
+}
+
+const confirm = (label, f) => withModal((modal) => {
+    return [
+        createTitle(label),
+        createButton('ok', () => modal.remove() || f()),
+        createButton('cancel', () => modal.remove())
+    ]
+})
+
+const prompt = (label, onsubmit) => withModal((modal) => {
+    const input = document.createElement('input')
+    const onclick = () => input.value !== '' && (modal.remove() || onsubmit(input.value))
+    input.addEventListener('keyup', (event) => event.key === 'Enter' && onclick())
+    input.type = 'text'
+    input.classList.add('the-input')
+
+    return [
+        createTitle(label),
+        input,
+        createButton('ok', onclick),
+        createButton('cancel', () => modal.remove())
+    ]
+})
+
+
+const createBackArrow = (onclick) => {
+    const arrow = document.createElement('div')
+    arrow.classList.add('back')
+    arrow.addEventListener('click', onclick)
+
+    return arrow
+}
+
+const createDelete = (name, onclick = Void) => {
+    const node = document.createElement('div')
+    node.classList.add('delete')
+    node.addEventListener('click', () => confirm('delete ' + name + '?', onclick))
+
+    return node
 }
